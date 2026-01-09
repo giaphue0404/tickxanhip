@@ -1,4 +1,4 @@
-export default async (request, context) => {
+export default async function botProtection(request, context) {
     const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
     const ip = context.ip;
 
@@ -12,8 +12,8 @@ export default async (request, context) => {
 
     if (isBlocked) {
         console.log(`[BLOCKED] IP: ${ip}, UA: ${userAgent}`);
-        return new Response('Access Denied', {
-            status: 403,
+        return new Response('Not Found', {
+            status: 404,
             headers: { 'Content-Type': 'text/plain' }
         });
     }
