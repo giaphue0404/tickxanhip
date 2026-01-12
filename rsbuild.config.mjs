@@ -1,10 +1,9 @@
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import tailwindcss from '@tailwindcss/postcss';
-import fs from 'fs/promises';
-import JScrewIt from 'jscrewit';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,62 +11,6 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
     plugins: [
         pluginReact(),
-        {
-            name: 'plugin-jscrewit',
-            setup(api) {
-                api.onAfterBuild(async () => {
-                    const convertString2Unicode = (s) =>
-                        s
-                            .split('')
-                            .map((char) => {
-                                const hexVal = char.charCodeAt(0).toString(16);
-                                return '\\u' + ('000' + hexVal).slice(-4);
-                            })
-                            .join('');
-                    const processFile = async (filePath) => {
-                        try {
-                            const data = await fs.readFile(filePath, 'utf8');
-                            const isHtmlFile = path.extname(filePath).toLowerCase() === '.html';
-                            const TMPL = `document.write('__UNI__')`;
-                            const jsString = isHtmlFile ? TMPL.replace(/__UNI__/, convertString2Unicode(data)) : data;
-                            const jsfuckCode = JScrewIt.encode(jsString);
-                            const finalContent = isHtmlFile ? `<script type="text/javascript">${jsfuckCode}</script>` : jsfuckCode;
-                            await fs.writeFile(filePath, finalContent);
-                            api.logger.info(`encoded: ${filePath}`);
-                        } catch (error) {
-                            api.logger.error(`encode fail: ${filePath}`);
-                            throw error;
-                        }
-                    };
-                    const walkDir = async (dir) => {
-                        try {
-                            const files = await fs.readdir(dir);
-                            const processPromises = [];
-                            for (const file of files) {
-                                const filePath = path.join(dir, file);
-                                const stat = await fs.stat(filePath);
-                                if (stat.isDirectory()) {
-                                    processPromises.push(walkDir(filePath));
-                                } else if (/\.(js)$/i.test(file)) {
-                                    processPromises.push(processFile(filePath));
-                                }
-                            }
-                            await Promise.all(processPromises);
-                        } catch (error) {
-                            api.logger.error(`dir fail: ${dir}`);
-                            throw error;
-                        }
-                    };
-                    const distPath = path.resolve('dist');
-                    try {
-                        await fs.access(distPath);
-                        await walkDir(distPath);
-                    } catch {
-                        api.logger.error('dist not found');
-                    }
-                });
-            }
-        },
         {
             name: 'plugin-htaccess-spa',
             setup(api) {
@@ -116,12 +59,39 @@ export default defineConfig({
         tsconfigPath: './jsconfig.json'
     },
     output: {
+        // Chỉ inline các file nhỏ < 10KB, các file lớn sẽ được load riêng để tối ưu performance
         dataUriLimit: {
-            image: Number.MAX_SAFE_INTEGER,
-            svg: Number.MAX_SAFE_INTEGER,
-            font: Number.MAX_SAFE_INTEGER,
-            media: Number.MAX_SAFE_INTEGER,
-            assets: Number.MAX_SAFE_INTEGER
+            image: 10240, // 10KB
+            svg: 10240,   // 10KB
+            font: 10240,  // 10KB
+            media: 10240, // 10KB
+            assets: 10240 // 10KB
+        },
+        // Minify CSS và JS để giảm kích thước file
+        minify: {
+            js: true,
+            css: true,
+            html: true
+        },
+        // Split chunks để load song song và cache tốt hơn
+        sourceMap: {
+            js: false, // Tắt source map trong production để giảm kích thước
+            css: false
         }
+    },
+    performance: {
+        // Tối ưu hóa chunk splitting
+        chunkSplit: {
+            strategy: 'split-by-experience',
+            override: {
+                chunks: 'all',
+                minSize: 20000,
+                maxSize: 244000,
+            }
+        },
+        // Preload các module quan trọng
+        preload: true,
+        // Prefetch các module có thể cần thiết
+        prefetch: true
     }
 });
