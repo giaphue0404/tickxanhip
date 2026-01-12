@@ -2,9 +2,10 @@
 command = "pnpm build"
 publish = "dist"
 
+# Redirect tất cả request không phải file tĩnh về index.html cho SPA routing
 [[redirects]]
 from = "/*"
-to = "/"
+to = "/index.html"
 status = 200
 
 [[edge_functions]]
@@ -22,11 +23,19 @@ X-Robots-Tag = "noindex, nofollow"
 Permissions-Policy = "geolocation=(), microphone=(), camera=()"
 
 [[headers]]
+for = "/*.html"
+[headers.values]
+Content-Type = "text/html; charset=utf-8"
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
 for = "/*.js"
 [headers.values]
+Content-Type = "application/javascript; charset=utf-8"
 Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
 for = "/*.css"
 [headers.values]
+Content-Type = "text/css; charset=utf-8"
 Cache-Control = "public, max-age=31536000, immutable"
